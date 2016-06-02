@@ -1,7 +1,7 @@
 /**
 * @author       @karlmacklin <tacklemcclean@gmail.com>
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -91,7 +91,7 @@ Phaser.SinglePad = function (game, padParent) {
     this._prevTimestamp = null;
 
     /**
-    * @property {Array} _buttons - Array of Phaser.GamepadButton objects. This array is populated when the gamepad is connected.
+    * @property {Array} _buttons - Array of Phaser.DeviceButton objects. This array is populated when the gamepad is connected.
     * @private
     */
     this._buttons = [];
@@ -136,17 +136,18 @@ Phaser.SinglePad.prototype = {
             this.onUpCallback = (typeof callbacks.onUp === 'function') ? callbacks.onUp : this.onUpCallback;
             this.onAxisCallback = (typeof callbacks.onAxis === 'function') ? callbacks.onAxis : this.onAxisCallback;
             this.onFloatCallback = (typeof callbacks.onFloat === 'function') ? callbacks.onFloat : this.onFloatCallback;
-        }
 
+            this.callbackContext = context;
+        }
     },
 
     /**
-    * Gets a GamepadButton object from this controller to be stored and referenced locally.
-    * The GamepadButton object can then be polled, have events attached to it, etc.
+    * Gets a DeviceButton object from this controller to be stored and referenced locally.
+    * The DeviceButton object can then be polled, have events attached to it, etc.
     *
     * @method Phaser.SinglePad#getButton
     * @param {number} buttonCode - The buttonCode of the button, i.e. Phaser.Gamepad.BUTTON_0, Phaser.Gamepad.XBOX360_A, etc.
-    * @return {Phaser.GamepadButton} The GamepadButton object which you can store locally and reference directly.
+    * @return {Phaser.DeviceButton} The DeviceButton object which you can store locally and reference directly.
     */
     getButton: function (buttonCode) {
 
@@ -241,7 +242,7 @@ Phaser.SinglePad.prototype = {
         for (var buttonCode in rawPad.buttons)
         {
             buttonCode = parseInt(buttonCode, 10);
-            this._buttons[buttonCode] = new Phaser.GamepadButton(this, buttonCode);
+            this._buttons[buttonCode] = new Phaser.DeviceButton(this, buttonCode);
         }
 
         if (triggerCallback && this._padParent.onConnectCallback)
@@ -359,6 +360,11 @@ Phaser.SinglePad.prototype = {
     */
     processButtonDown: function (buttonCode, value) {
 
+        if (this._buttons[buttonCode])
+        {
+            this._buttons[buttonCode].start(null, value);
+        }
+
         if (this._padParent.onDownCallback)
         {
             this._padParent.onDownCallback.call(this._padParent.callbackContext, buttonCode, value, this.index);
@@ -367,11 +373,6 @@ Phaser.SinglePad.prototype = {
         if (this.onDownCallback)
         {
             this.onDownCallback.call(this.callbackContext, buttonCode, value);
-        }
-
-        if (this._buttons[buttonCode])
-        {
-            this._buttons[buttonCode].processButtonDown(value);
         }
 
     },
@@ -397,7 +398,7 @@ Phaser.SinglePad.prototype = {
 
         if (this._buttons[buttonCode])
         {
-            this._buttons[buttonCode].processButtonUp(value);
+            this._buttons[buttonCode].stop(null, value);
         }
 
     },
@@ -423,7 +424,7 @@ Phaser.SinglePad.prototype = {
 
         if (this._buttons[buttonCode])
         {
-            this._buttons[buttonCode].processButtonFloat(value);
+            this._buttons[buttonCode].padFloat(value);
         }
 
     },

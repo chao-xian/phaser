@@ -1,12 +1,12 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
 /**
 * @classdesc
-* Detects device support capabilities and is responsible for device intialization - see {@link Phaser.Device.whenReady whenReady}.
+* Detects device support capabilities and is responsible for device initialization - see {@link Phaser.Device.whenReady whenReady}.
 *
 * This class represents a singleton object that can be accessed directly as `game.device`
 * (or, as a fallback, `Phaser.Device` when a game instance is not available) without the need to instantiate it.
@@ -58,6 +58,12 @@ Phaser.Device = function () {
     this.iOS = false;
 
     /**
+    * @property {number} iOSVersion - If running in iOS this will contain the major version number.
+    * @default
+    */
+    this.iOSVersion = 0;
+
+    /**
     * @property {boolean} cocoonJS - Is the game running under CocoonJS?
     * @default
     */
@@ -86,6 +92,12 @@ Phaser.Device = function () {
     * @default
     */
     this.nodeWebkit = false;
+    
+    /**
+    * @property {boolean} electron - Is the game running under GitHub Electron?
+    * @default
+    */
+    this.electron = false;
     
     /**
     * @property {boolean} ejecta - Is the game running under Ejecta?
@@ -207,7 +219,7 @@ Phaser.Device = function () {
     * @property {boolean} getUserMedia - Does the device support the getUserMedia API?
     * @default
     */
-    this.getUserMedia = false;
+    this.getUserMedia = true;
 
     /**
     * @property {boolean} quirksMode - Is the browser running in strict mode (false) or quirks mode? (true)
@@ -251,6 +263,12 @@ Phaser.Device = function () {
     this.chrome = false;
 
     /**
+    * @property {number} chromeVersion - If running in Chrome this will contain the major version number.
+    * @default
+    */
+    this.chromeVersion = 0;
+
+    /**
     * @property {boolean} epiphany - Set to true if running in Epiphany.
     * @default
     */
@@ -261,6 +279,12 @@ Phaser.Device = function () {
     * @default
     */
     this.firefox = false;
+
+    /**
+    * @property {number} firefoxVersion - If running in Firefox this will contain the major version number.
+    * @default
+    */
+    this.firefoxVersion = 0;
 
     /**
     * @property {boolean} ie - Set to true if running in Internet Explorer.
@@ -287,6 +311,12 @@ Phaser.Device = function () {
     this.tridentVersion = 0;
 
     /**
+    * @property {boolean} edge - Set to true if running in Microsoft Edge browser.
+    * @default
+    */
+    this.edge = false;
+
+    /**
     * @property {boolean} mobileSafari - Set to true if running in Mobile Safari.
     * @default
     */
@@ -309,6 +339,12 @@ Phaser.Device = function () {
     * @default
     */
     this.safari = false;
+
+    /**
+    * @property {number} safariVersion - If running in Safari this will contain the major version number.
+    * @default
+    */
+    this.safariVersion = 0;
 
     /**
     * @property {boolean} webApp - Set to true if running as a WebApp, i.e. within a WebView
@@ -372,6 +408,50 @@ Phaser.Device = function () {
     * @default
     */
     this.webm = false;
+
+    /**
+    * @property {boolean} dolby - Can this device play EC-3 Dolby Digital Plus files?
+    * @default
+    */
+    this.dolby = false;
+
+    //  Video
+
+    /**
+    * @property {boolean} oggVideo - Can this device play ogg video files?
+    * @default
+    */
+    this.oggVideo = false;
+
+    /**
+    * @property {boolean} h264Video - Can this device play h264 mp4 video files?
+    * @default
+    */
+    this.h264Video = false;
+
+    /**
+    * @property {boolean} mp4Video - Can this device play h264 mp4 video files?
+    * @default
+    */
+    this.mp4Video = false;
+
+    /**
+    * @property {boolean} webmVideo - Can this device play webm video files?
+    * @default
+    */
+    this.webmVideo = false;
+
+    /**
+    * @property {boolean} vp9Video - Can this device play vp9 video files?
+    * @default
+    */
+    this.vp9Video = false;
+
+    /**
+    * @property {boolean} hlsVideo - Can this device play hls video files?
+    * @default
+    */
+    this.hlsVideo = false;
 
     //  Device
 
@@ -602,6 +682,8 @@ Phaser.Device._initialize = function () {
         else if (/iP[ao]d|iPhone/i.test(ua))
         {
             device.iOS = true;
+            (navigator.appVersion).match(/OS (\d+)/);
+            device.iOSVersion = parseInt(RegExp.$1, 10);
         }
         else if (/Linux/.test(ua))
         {
@@ -614,11 +696,15 @@ Phaser.Device._initialize = function () {
         else if (/Windows/.test(ua))
         {
             device.windows = true;
+        }
 
-            if (/Windows Phone/i.test(ua))
-            {
-                device.windowsPhone = true;
-            }
+        if (/Windows Phone/i.test(ua) || /IEMobile/i.test(ua))
+        {
+            device.android = false;
+            device.iOS = false;
+            device.macOS = false;
+            device.windows = true;
+            device.windowsPhone = true;
         }
 
         var silk = /Silk/.test(ua); // detected in browsers
@@ -661,14 +747,23 @@ Phaser.Device._initialize = function () {
 
         device.quirksMode = (document.compatMode === 'CSS1Compat') ? false : true;
 
-        device.getUserMedia = !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+
+        window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
+
+        device.getUserMedia = device.getUserMedia && !!navigator.getUserMedia && !!window.URL;
+
+        // Older versions of firefox (< 21) apparently claim support but user media does not actually work
+        if (device.firefox && device.firefoxVersion < 21)
+        {
+            device.getUserMedia = false;
+        }
 
         // TODO: replace canvasBitBltShift detection with actual feature check
 
         // Excludes iOS versions as they generally wrap UIWebView (eg. Safari WebKit) and it
         // is safer to not try and use the fast copy-over method.
-        if (!device.iOS &&
-            (device.ie || device.firefox || device.chrome))
+        if (!device.iOS && (device.ie || device.firefox || device.chrome))
         {
             device.canvasBitBltShift = true;
         }
@@ -788,17 +883,23 @@ Phaser.Device._initialize = function () {
         {
             device.arora = true;
         }
-        else if (/Chrome/.test(ua))
+        else if (/Edge\/\d+/.test(ua))
+        {
+            device.edge = true;
+        }
+        else if (/Chrome\/(\d+)/.test(ua) && !device.windowsPhone)
         {
             device.chrome = true;
+            device.chromeVersion = parseInt(RegExp.$1, 10);
         }
         else if (/Epiphany/.test(ua))
         {
             device.epiphany = true;
         }
-        else if (/Firefox/.test(ua))
+        else if (/Firefox\D+(\d+)/.test(ua))
         {
             device.firefox = true;
+            device.firefoxVersion = parseInt(RegExp.$1, 10);
         }
         else if (/AppleWebKit/.test(ua) && device.iOS)
         {
@@ -817,9 +918,14 @@ Phaser.Device._initialize = function () {
         {
             device.opera = true;
         }
-        else if (/Safari/.test(ua))
+        else if (/Safari\/(\d+)/.test(ua) && !device.windowsPhone)
         {
             device.safari = true;
+
+            if (/Version\/(\d+)\./.test(ua))
+            {
+                device.safariVersion = parseInt(RegExp.$1, 10);
+            }
         }
         else if (/Trident\/(\d+\.\d+)(.*)rv:(\d+\.\d+)/.test(ua))
         {
@@ -829,13 +935,13 @@ Phaser.Device._initialize = function () {
             device.ieVersion = parseInt(RegExp.$3, 10);
         }
 
-        //Silk gets its own if clause because its ua also contains 'Safari'
+        //  Silk gets its own if clause because its ua also contains 'Safari'
         if (/Silk/.test(ua))
         {
             device.silk = true;
         }
 
-        // WebApp mode in iOS
+        //  WebApp mode in iOS
         if (navigator['standalone'])
         {
             device.webApp = true;
@@ -851,15 +957,11 @@ Phaser.Device._initialize = function () {
             device.node = true;
         }
         
-        if (device.node)
+        if (device.node && typeof process.versions === 'object')
         {
-            try {
-                device.nodeWebkit = (typeof require('nw.gui') !== "undefined");
-            }
-            catch(error)
-            {
-                device.nodeWebkit = false;
-            }
+            device.nodeWebkit = !!process.versions['node-webkit'];
+            
+            device.electron = !!process.versions.electron;
         }
         
         if (navigator['isCocoonJS'])
@@ -891,6 +993,47 @@ Phaser.Device._initialize = function () {
     }
 
     /**
+    * Check video support.
+    */
+    function _checkVideo () {
+
+        var videoElement = document.createElement("video");
+        var result = false;
+
+        try {
+            if (result = !!videoElement.canPlayType)
+            {
+                if (videoElement.canPlayType('video/ogg; codecs="theora"').replace(/^no$/, ''))
+                {
+                    device.oggVideo = true;
+                }
+
+                if (videoElement.canPlayType('video/mp4; codecs="avc1.42E01E"').replace(/^no$/, ''))
+                {
+                    // Without QuickTime, this value will be `undefined`. github.com/Modernizr/Modernizr/issues/546
+                    device.h264Video = true;
+                    device.mp4Video = true;
+                }
+
+                if (videoElement.canPlayType('video/webm; codecs="vp8, vorbis"').replace(/^no$/, ''))
+                {
+                    device.webmVideo = true;
+                }
+
+                if (videoElement.canPlayType('video/webm; codecs="vp9"').replace(/^no$/, ''))
+                {
+                    device.vp9Video = true;
+                }
+
+                if (videoElement.canPlayType('application/x-mpegURL; codecs="avc1.42E01E"').replace(/^no$/, ''))
+                {
+                    device.hlsVideo = true;
+                }
+            }
+        } catch (e) {}
+    }
+
+    /**
     * Check audio support.
     */
     function _checkAudio () {
@@ -901,33 +1044,60 @@ Phaser.Device._initialize = function () {
         var result = false;
 
         try {
-            if (result = !!audioElement.canPlayType) {
-
-                if (audioElement.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, '')) {
+            if (result = !!audioElement.canPlayType)
+            {
+                if (audioElement.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''))
+                {
                     device.ogg = true;
                 }
 
-                if (audioElement.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, '') || audioElement.canPlayType('audio/opus;').replace(/^no$/, '')) {
+                if (audioElement.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, '') || audioElement.canPlayType('audio/opus;').replace(/^no$/, ''))
+                {
                     device.opus = true;
                 }
 
-                if (audioElement.canPlayType('audio/mpeg;').replace(/^no$/, '')) {
+                if (audioElement.canPlayType('audio/mpeg;').replace(/^no$/, ''))
+                {
                     device.mp3 = true;
                 }
 
                 // Mimetypes accepted:
                 //   developer.mozilla.org/En/Media_formats_supported_by_the_audio_and_video_elements
                 //   bit.ly/iphoneoscodecs
-                if (audioElement.canPlayType('audio/wav; codecs="1"').replace(/^no$/, '')) {
+                if (audioElement.canPlayType('audio/wav; codecs="1"').replace(/^no$/, ''))
+                {
                     device.wav = true;
                 }
 
-                if (audioElement.canPlayType('audio/x-m4a;') || audioElement.canPlayType('audio/aac;').replace(/^no$/, '')) {
+                if (audioElement.canPlayType('audio/x-m4a;') || audioElement.canPlayType('audio/aac;').replace(/^no$/, ''))
+                {
                     device.m4a = true;
                 }
 
-                if (audioElement.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, '')) {
+                if (audioElement.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, ''))
+                {
                     device.webm = true;
+                }
+
+                if (audioElement.canPlayType('audio/mp4;codecs="ec-3"') !== '')
+                {
+                    if (device.edge)
+                    {
+                        device.dolby = true;
+                    }
+                    else if (device.safari && device.safariVersion >= 9)
+                    {
+                        if (/Mac OS X (\d+)_(\d+)/.test(navigator.userAgent))
+                        {
+                            var major = parseInt(RegExp.$1, 10);
+                            var minor = parseInt(RegExp.$2, 10);
+
+                            if ((major === 10 && minor >= 11) || major > 10)
+                            {
+                                device.dolby = true;
+                            }
+                        }
+                    }
                 }
             }
         } catch (e) {
@@ -1011,12 +1181,12 @@ Phaser.Device._initialize = function () {
     */
     function _checkIsUint8ClampedImageData () {
 
-        if (typeof Uint8ClampedArray === "undefined")
+        if (Uint8ClampedArray === undefined)
         {
             return false;
         }
 
-        var elem = document.createElement('canvas');
+        var elem = PIXI.CanvasPool.create(this, 1, 1);
         var ctx = elem.getContext('2d');
 
         if (!ctx)
@@ -1025,6 +1195,8 @@ Phaser.Device._initialize = function () {
         }
 
         var image = ctx.createImageData(1, 1);
+
+        PIXI.CanvasPool.remove(this);
 
         return image.data instanceof Uint8ClampedArray;
 
@@ -1064,8 +1236,9 @@ Phaser.Device._initialize = function () {
 
     //  Run the checks
     _checkOS();
-    _checkAudio();
     _checkBrowser();
+    _checkAudio();
+    _checkVideo();
     _checkCSS3D();
     _checkDevice();
     _checkFeatures();
@@ -1084,27 +1257,62 @@ Phaser.Device._initialize = function () {
 */
 Phaser.Device.canPlayAudio = function (type) {
 
-    if (type == 'mp3' && this.mp3)
+    if (type === 'mp3' && this.mp3)
     {
         return true;
     }
-    else if (type == 'ogg' && (this.ogg || this.opus))
+    else if (type === 'ogg' && (this.ogg || this.opus))
     {
         return true;
     }
-    else if (type == 'm4a' && this.m4a)
+    else if (type === 'm4a' && this.m4a)
     {
         return true;
     }
-    else if (type == 'opus' && this.opus)
+    else if (type === 'opus' && this.opus)
     {
         return true;
     }
-    else if (type == 'wav' && this.wav)
+    else if (type === 'wav' && this.wav)
     {
         return true;
     }
-    else if (type == 'webm' && this.webm)
+    else if (type === 'webm' && this.webm)
+    {
+        return true;
+    }
+    else if (type === 'mp4' && this.dolby)
+    {
+        return true;
+    }
+
+    return false;
+
+};
+
+/**
+* Check whether the host environment can play video files.
+*
+* @method canPlayVideo
+* @memberof Phaser.Device.prototype
+* @param {string} type - One of 'mp4, 'ogg', 'webm' or 'mpeg'.
+* @return {boolean} True if the given file type is supported by the browser, otherwise false.
+*/
+Phaser.Device.canPlayVideo = function (type) {
+
+    if (type === 'webm' && (this.webmVideo || this.vp9Video))
+    {
+        return true;
+    }
+    else if (type === 'mp4' && (this.mp4Video || this.h264Video))
+    {
+        return true;
+    }
+    else if ((type === 'ogg' || type === 'ogv') && this.oggVideo)
+    {
+        return true;
+    }
+    else if (type === 'mpeg' && this.hlsVideo)
     {
         return true;
     }

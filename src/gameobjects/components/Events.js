@@ -1,17 +1,24 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
 /**
 * The Events component is a collection of events fired by the parent game object.
+* 
+* Phaser uses what are known as 'Signals' for all event handling. All of the events in
+* this class are signals you can subscribe to, much in the same way you'd "listen" for
+* an event.
 *
-* For example to tell when a Sprite has been added to a new group:
+* For example to tell when a Sprite has been added to a new group, you can bind a function
+* to the `onAddedToGroup` signal:
 *
 * `sprite.events.onAddedToGroup.add(yourFunction, this);`
 *
 * Where `yourFunction` is the function you want called when this event occurs.
+* 
+* For more details about how signals work please see the Phaser.Signal class.
 *
 * The Input-related events will only be dispatched if the Sprite has had `inputEnabled` set to `true`
 * and the Animation-related events only apply to game objects with animations like {@link Phaser.Sprite}.
@@ -56,6 +63,7 @@ Phaser.Events.prototype = {
         if (this._onInputDown)         { this._onInputDown.dispose(); }
         if (this._onInputUp)           { this._onInputUp.dispose(); }
         if (this._onDragStart)         { this._onDragStart.dispose(); }
+        if (this._onDragUpdate)        { this._onDragUpdate.dispose(); }
         if (this._onDragStop)          { this._onDragStop.dispose(); }
 
         if (this._onAnimationStart)    { this._onAnimationStart.dispose(); }
@@ -130,6 +138,11 @@ Phaser.Events.prototype = {
     * @property {Phaser.Signal} onDragStart - This signal is dispatched if the parent is inputEnabled and receives a drag start event from a Pointer.
     */
     onDragStart: null,
+
+    /**
+    * @property {Phaser.Signal} onDragUpdate - This signal is dispatched if the parent is inputEnabled and receives a drag update event from a Pointer.
+    */
+    onDragUpdate: null,
 
     /**
     * @property {Phaser.Signal} onDragStop - This signal is dispatched if the parent is inputEnabled and receives a drag stop event from a Pointer.

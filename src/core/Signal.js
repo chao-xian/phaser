@@ -1,20 +1,63 @@
 /**
 * @author       Miller Medeiros http://millermedeiros.github.com/js-signals/
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
 /**
-* A Signal is an event dispatch mechansim than supports broadcasting to multiple listeners.
+* Signals are what Phaser uses to handle events and event dispatching.
+* You can listen for a Signal by binding a callback / function to it.
+* This is done by using either `Signal.add` or `Signal.addOnce`.
 *
-* Event listeners are uniquely identified by the listener/callback function and the context.
+* For example you can listen for a touch or click event from the Input Manager 
+* by using its `onDown` Signal:
+*
+* `game.input.onDown.add(function() { ... });`
+*
+* Rather than inline your function, you can pass a reference:
+*
+* `game.input.onDown.add(clicked, this);`
+* `function clicked () { ... }`
+*
+* In this case the second argument (`this`) is the context in which your function should be called.
+*
+* Now every time the InputManager dispatches the `onDown` signal (or event), your function
+* will be called.
+*
+* Very often a Signal will send arguments to your function.
+* This is specific to the Signal itself.
+* If you're unsure then check the documentation, or failing that simply do:
+*
+* `Signal.add(function() { console.log(arguments); })`
+*
+* and it will log all of the arguments your function received from the Signal.
+*
+* Sprites have lots of default signals you can listen to in their Events class, such as:
+*
+* `sprite.events.onKilled`
 * 
+* Which is called automatically whenever the Sprite is killed.
+* There are lots of other events, see the Events component for a list.
+*
+* As well as listening to pre-defined Signals you can also create your own:
+*
+* `var mySignal = new Phaser.Signal();`
+*
+* This creates a new Signal. You can bind a callback to it:
+*
+* `mySignal.add(myCallback, this);`
+*
+* and then finally when ready you can dispatch the Signal:
+*
+* `mySignal.dispatch(your arguments);`
+*
+* And your callback will be invoked. See the dispatch method for more details.
+*
 * @class Phaser.Signal
 * @constructor
 */
-Phaser.Signal = function () {
-};
+Phaser.Signal = function () {};
 
 Phaser.Signal.prototype = {
 
@@ -47,7 +90,7 @@ Phaser.Signal.prototype = {
     _shouldPropagate: true,
 
     /**
-    * Is the Signal active? Only active signal will broadcast dispatched events.
+    * Is the Signal active? Only active signals will broadcast dispatched events.
     *
     * Setting this property during a dispatch will only affect the next dispatch. To stop the propagation of a signal from a listener use {@link #halt}.
     *
@@ -60,7 +103,7 @@ Phaser.Signal.prototype = {
     * @property {function} _boundDispatch - The bound dispatch function, if any.
     * @private
     */
-    _boundDispatch: true,
+    _boundDispatch: false,
 
     /**
     * @method Phaser.Signal#validateListener
@@ -86,7 +129,7 @@ Phaser.Signal.prototype = {
     * @param {number} [priority] - The priority level of the event listener. Listeners with higher priority will be executed before listeners with lower priority. Listeners with same priority level will be executed at the same order as they were added. (default = 0).
     * @return {Phaser.SignalBinding} An Object representing the binding between the Signal and listener.
     */
-    _registerListener: function (listener, isOnce, listenerContext, priority) {
+    _registerListener: function (listener, isOnce, listenerContext, priority, args) {
 
         var prevIndex = this._indexOfListener(listener, listenerContext);
         var binding;
@@ -102,7 +145,7 @@ Phaser.Signal.prototype = {
         }
         else
         {
-            binding = new Phaser.SignalBinding(this, listener, isOnce, listenerContext, priority);
+            binding = new Phaser.SignalBinding(this, listener, isOnce, listenerContext, priority, args);
             this._addBinding(binding);
         }
 
@@ -153,7 +196,7 @@ Phaser.Signal.prototype = {
             return -1;
         }
 
-        if (typeof context === 'undefined') { context = null; }
+        if (context === undefined) { context = null; }
 
         var n = this._bindings.length;
         var cur;
@@ -187,19 +230,44 @@ Phaser.Signal.prototype = {
     },
 
     /**
-    * Add an event listener.
+    * Add an event listener for this signal.
+    *
+    * An event listener is a callback with a related context and priority.
+    *
+    * You can optionally provide extra arguments which will be passed to the callback after any internal parameters.
+    *
+    * For example: `Phaser.Key.onDown` when dispatched will send the Phaser.Key object that caused the signal as the first parameter.
+    * Any arguments you've specified after `priority` will be sent as well:
+    *
+    * `fireButton.onDown.add(shoot, this, 0, 'lazer', 100);`
+    *
+    * When onDown dispatches it will call the `shoot` callback passing it: `Phaser.Key, 'lazer', 100`.
+    *
+    * Where the first parameter is the one that Key.onDown dispatches internally and 'lazer', 
+    * and the value 100 were the custom arguments given in the call to 'add'.
     *
     * @method Phaser.Signal#add
     * @param {function} listener - The function to call when this Signal is dispatched.
     * @param {object} [listenerContext] - The context under which the listener will be executed (i.e. the object that should represent the `this` variable).
     * @param {number} [priority] - The priority level of the event listener. Listeners with higher priority will be executed before listeners with lower priority. Listeners with same priority level will be executed at the same order as they were added (default = 0)
+    * @param {...any} [args=(none)] - Additional arguments to pass to the callback (listener) function. They will be appended after any arguments usually dispatched.
     * @return {Phaser.SignalBinding} An Object representing the binding between the Signal and listener.
     */
     add: function (listener, listenerContext, priority) {
 
         this.validateListener(listener, 'add');
 
-        return this._registerListener(listener, false, listenerContext, priority);
+        var args = [];
+
+        if (arguments.length > 3)
+        {
+            for (var i = 3; i < arguments.length; i++)
+            {
+                args.push(arguments[i]);
+            }
+        }
+
+        return this._registerListener(listener, false, listenerContext, priority, args);
 
     },
 
@@ -213,13 +281,24 @@ Phaser.Signal.prototype = {
     * @param {function} listener - The function to call when this Signal is dispatched.
     * @param {object} [listenerContext] - The context under which the listener will be executed (i.e. the object that should represent the `this` variable).
     * @param {number} [priority] - The priority level of the event listener. Listeners with higher priority will be executed before listeners with lower priority. Listeners with same priority level will be executed at the same order as they were added (default = 0)
+    * @param {...any} [args=(none)] - Additional arguments to pass to the callback (listener) function. They will be appended after any arguments usually dispatched.
     * @return {Phaser.SignalBinding} An Object representing the binding between the Signal and listener.
     */
     addOnce: function (listener, listenerContext, priority) {
 
         this.validateListener(listener, 'addOnce');
 
-        return this._registerListener(listener, true, listenerContext, priority);
+        var args = [];
+
+        if (arguments.length > 3)
+        {
+            for (var i = 3; i < arguments.length; i++)
+            {
+                args.push(arguments[i]);
+            }
+        }
+
+        return this._registerListener(listener, true, listenerContext, priority, args);
 
     },
 
@@ -255,7 +334,7 @@ Phaser.Signal.prototype = {
     */
     removeAll: function (context) {
 
-        if (typeof context === 'undefined') { context = null; }
+        if (context === undefined) { context = null; }
 
         if (!this._bindings)
         {
@@ -302,7 +381,7 @@ Phaser.Signal.prototype = {
     /**
     * Stop propagation of the event, blocking the dispatch to next listener on the queue.
     *
-    * This should be called only during event dispatch as calling it before/after dispatch won't affect other broadcast.
+    * This should be called only during event dispatch as calling it before/after dispatch won't affect another broadcast.
     * See {@link #active} to enable/disable the signal entirely.
     *
     * @method Phaser.Signal#halt

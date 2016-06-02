@@ -1,6 +1,5 @@
 {
   "name": "phaser",
-  "version": "2.3.0",
   "homepage": "http://phaser.io",
   "authors": [
     "photonstorm <rich@photonstorm.com>"
@@ -33,5 +32,12 @@
     "bower_components",
     "test",
     "tests"
-  ]
+  ],
+  "typescript": {
+    "definitions": [
+      "typescript/p2.d.ts",
+      "typescript/phaser.comments.d.ts",
+      "typescript/pixi.comments.d.ts"
+    ]
+  }
 }

@@ -1,8 +1,8 @@
-// Type definitions for PIXI 2.2.8 2015-03-24
-// Project: https://github.com/GoodBoyDigital/pixi.js/
+// Type definitions for PIXI with Phaser Deviations. 
 
 declare module PIXI {
 
+    export var game: Phaser.Game;
     export var WEBGL_RENDERER: number;
     export var CANVAS_RENDERER: number;
     export var VERSION: string;
@@ -51,8 +51,10 @@ declare module PIXI {
     export var glContexts: WebGLRenderingContext[];
     export var instances: any[];
 
-    export var BaseTextureCache: { [key: string]: BaseTexture }
-    export var TextureCache: { [key: string]: Texture }
+    export var BaseTextureCache: { [key: string]: BaseTexture };
+    export var TextureCache: { [key: string]: Texture };
+    export var TextureSilentFail: boolean;
+    export var BitmapText: { fonts: {} };
 
     export function isPowerOfTwo(width: number, height: number): boolean;
 
@@ -100,7 +102,7 @@ declare module PIXI {
         width: number;
 
         destroy(): void;
-        render(stage: Stage): void;
+        render(stage: DisplayObjectContainer): void;
         resize(width: number, height: number): void;
 
     }
@@ -178,12 +180,12 @@ declare module PIXI {
 
     export class AbstractFilter {
 
-        constructor(fragmentSrc: string[], uniforms: any);
+        constructor(fragmentSrc: string | string[], uniforms: any);
 
         dirty: boolean;
         padding: number;
         uniforms: any;
-        fragmentSrc: string[];
+        fragmentSrc: string | string[];
 
         apply(frameBuffer: WebGLFramebuffer): void;
         syncUniforms(): void;
@@ -264,6 +266,7 @@ declare module PIXI {
         premultipliedAlpha: boolean;
         resolution: number;
         scaleMode: scaleModes;
+        skipRender: boolean;
         source: HTMLImageElement;
         width: number;
 
@@ -275,7 +278,7 @@ declare module PIXI {
         once(eventName: string, fn: Function): Function;
         off(eventName: string, fn: Function): Function;
         removeAllEventListeners(eventName: string): void;
-
+        forceLoaded(width: number, height: number): void;
         destroy(): void;
         dirty(): void;
         updateSourceImage(newSrc: string): void;
@@ -302,26 +305,6 @@ declare module PIXI {
         removeAllEventListeners(eventName: string): void;
 
         load(): void;
-
-    }
-
-    export class BitmapText extends DisplayObjectContainer {
-
-        static fonts: any;
-
-        constructor(text: string, style: BitmapTextStyle);
-
-        dirty: boolean;
-        fontName: string;
-        fontSize: number;
-        maxWidth: number;
-        textWidth: number;
-        textHeight: number;
-        tint: number;
-        style: BitmapTextStyle;
-
-        setText(text: string): void;
-        setStyle(style: BitmapTextStyle): void;
 
     }
 
@@ -354,8 +337,20 @@ declare module PIXI {
         height: number;
         width: number;
 
+        destroy(): void;
         clear(): void;
         resize(width: number, height: number): void;
+
+    }
+
+    export class CanvasPool {
+
+        static create(parent: HTMLElement, width?: number, height?: number): HTMLCanvasElement;
+        static getFirst(): HTMLCanvasElement;
+        static remove(parent: HTMLElement): void;
+        static removeByCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement;
+        static getTotal(): number;
+        static getFree(): number;
 
     }
 
@@ -368,25 +363,26 @@ declare module PIXI {
 
     export class CanvasRenderer implements PixiRenderer {
 
-        constructor(width?: number, height?: number, options?: PixiRendererOptions);
+        constructor(game: Phaser.Game);
 
-        autoResize: boolean;
-        clearBeforeRender: boolean;
-        context: CanvasRenderingContext2D;
-        count: number;
-        height: number;
-        maskManager: CanvasMaskManager;
-        refresh: boolean;
-        renderSession: RenderSession;
-        resolution: number;
-        transparent: boolean;
+        game: Phaser.Game;
         type: number;
-        view: HTMLCanvasElement;
+        resolution: number;
+        clearBeforeRender: boolean;
+        transparent: boolean;
+        autoResize: boolean;
         width: number;
+        height: number;
+        view: HTMLCanvasElement;
+        context: CanvasRenderingContext2D;
+        refresh: boolean;
+        count: number;
+        maskManager: CanvasMaskManager;
+        renderSession: RenderSession;
 
-        destroy(removeView?: boolean): void;
-        render(stage: Stage): void;
+        render(stage: DisplayObjectContainer): void;
         resize(width: number, height: number): void;
+        destroy(removeView?: boolean): void;
 
     }
 
@@ -396,10 +392,7 @@ declare module PIXI {
         static tintWithMultiply(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
         static tintWithOverlay(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
         static tintWithPerPixel(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
-        static roundColor(color: number): void;
 
-        static cacheStepsPerColorChannel: number;
-        static convertTintToImage: boolean;
         static canUseMultiply: boolean;
         static tintMethod: any;
 
@@ -481,9 +474,12 @@ declare module PIXI {
         renderable: boolean;
         rotation: number;
         scale: Point;
-        stage: Stage;
+        stage: DisplayObjectContainer;
         visible: boolean;
         worldAlpha: number;
+        worldPosition: PIXI.Point;
+        worldScale: PIXI.Point;
+        worldRotation: number;
         worldVisible: boolean;
         x: number;
         y: number;
@@ -492,7 +488,7 @@ declare module PIXI {
         displayObjectUpdateTransform(): void;
         getBounds(matrix?: Matrix): Rectangle;
         getLocalBounds(): Rectangle;
-        generateTexture(resolution: number, scaleMode: scaleModes, renderer: PixiRenderer): RenderTexture;
+        generateTexture(resolution?: number, scaleMode?: number, renderer?: PixiRenderer): RenderTexture;
         mousedown(e: InteractionData): void;
         mouseout(e: InteractionData): void;
         mouseover(e: InteractionData): void;
@@ -503,7 +499,7 @@ declare module PIXI {
         rightdown(e: InteractionData): void;
         rightup(e: InteractionData): void;
         rightupoutside(e: InteractionData): void;
-        setStageReference(stage: Stage): void;
+        setStageReference(stage: DisplayObjectContainer): void;
         tap(e: InteractionData): void;
         toGlobal(position: Point): Point;
         toLocal(position: Point, from: DisplayObject): Point;
@@ -511,7 +507,7 @@ declare module PIXI {
         touchendoutside(e: InteractionData): void;
         touchstart(e: InteractionData): void;
         touchmove(e: InteractionData): void;
-        updateTransform(): void;
+        updateTransform(parent?: PIXI.DisplayObjectContainer): void;
 
     }
 
@@ -629,7 +625,7 @@ declare module PIXI {
         bezierCurveTo(cpX: number, cpY: number, cpX2: number, cpY2: number, toX: number, toY: number): Graphics;
         clear(): Graphics;
         destroyCachedSprite(): void;
-        drawCircle(x: number, y: number, radius: number): Graphics;
+        drawCircle(x: number, y: number, diameter: number): Graphics;
         drawEllipse(x: number, y: number, width: number, height: number): Graphics;
         drawPolygon(...path: any[]): Graphics;
         drawRect(x: number, y: number, width: number, height: number): Graphics;
@@ -639,6 +635,7 @@ declare module PIXI {
         drawShape(shape: Ellipse): GraphicsData;
         drawShape(shape: Polygon): GraphicsData;
         endFill(): Graphics;
+        generateTexture(resolution?: number, scaleMode?: number): Texture;
         lineStyle(lineWidth?: number, color?: number, alpha?: number): Graphics;
         lineTo(x: number, y: number): Graphics;
         moveTo(x: number, y: number): Graphics;
@@ -698,10 +695,10 @@ declare module PIXI {
         onTouchMove: Function;
         pool: InteractionData[];
         resolution: number;
-        stage: Stage;
+        stage: DisplayObjectContainer;
         touches: { [id: string]: InteractionData };
 
-        constructor(stage: Stage);
+        constructor(stage: DisplayObjectContainer);
     }
 
     export class InvertFilter extends AbstractFilter {
@@ -1028,7 +1025,7 @@ declare module PIXI {
         texture: Texture;
         tint: number;
 
-        setTexture(texture: Texture): void;
+        setTexture(texture: Texture, destroyBase?: boolean): void;
 
     }
 
@@ -1066,18 +1063,6 @@ declare module PIXI {
 
     }
 
-    export class Stage extends DisplayObjectContainer {
-
-        constructor(backgroundColor: number);
-
-        interactionManager: InteractionManager;
-
-        getMousePosition(): Point;
-        setBackgroundColor(backgroundColor: number): void;
-        setInteractionDelegate(domElement: HTMLElement): void;
-
-    }
-
     export class Strip extends DisplayObjectContainer {
 
         static DrawModes: {
@@ -1099,23 +1084,6 @@ declare module PIXI {
         vertices: number[];
 
         getBounds(matrix?: Matrix): Rectangle;
-
-    }
-
-    export class Text extends Sprite {
-
-        constructor(text: string, style?: TextStyle);
-
-        static fontPropertiesCanvas: any;
-        static fontPropertiesContext: any;
-        static fontPropertiesCache: any;
-
-        context: CanvasRenderingContext2D;
-        resolution: number;
-
-        destroy(destroyTexture: boolean): void;
-        setStyle(style: TextStyle): void;
-        setText(text: string): void;
 
     }
 
@@ -1160,10 +1128,14 @@ declare module PIXI {
 
         constructor(texture: Texture, width: number, height: number);
 
+        canvasBuffer: PIXI.CanvasBuffer;
         blendMode: number;
+        refreshTexture: boolean;
         texture: Texture;
+        textureDebug: boolean;
         tint: number;
         tilePosition: Point;
+        tilePattern: PIXI.Texture;
         tileScale: Point;
         tileScaleOffset: Point;
 
@@ -1216,15 +1188,21 @@ declare module PIXI {
 
         static baseTextureFromVideo(video: HTMLVideoElement, scaleMode: number): BaseTexture;
         static textureFromVideo(video: HTMLVideoElement, scaleMode: number): Texture;
-        static fromUrl(videoSrc: string, scaleMode: number): Texture;
+        static fromUrl(videoSrc: string, scaleMode?: number, autoPlay?: boolean, type?: string, loop?: boolean): Texture;
 
+        controls: boolean;
         autoUpdate: boolean;
+        type: string;
+
+        changeSource(src: string, type: string, loop: boolean): void;
+        play(): void;
+        stop(): void;
 
         destroy(): void;
         updateBound(): void;
-        onPlayStart(): void;
-        onPlayStop(): void;
-        onCanPlay(): void;
+        onPlayStart: () => void;
+        onPlayStop: () => void;
+        onCanPlay: (event: any) => void;
 
     }
 
@@ -1340,39 +1318,35 @@ declare module PIXI {
 
         static createWebGLTexture(texture: Texture, gl: WebGLRenderingContext): void;
 
-        constructor(width?: number, height?: number, options?: PixiRendererOptions);
+        constructor(game: Phaser.Game);
 
-        autoResize: boolean;
-        clearBeforeRender: boolean;
-        contextLost: boolean;
-        contextLostBound: Function;
-        contextRestoreLost: boolean;
-        contextRestoredBound: Function;
-        height: number;
-        gl: WebGLRenderingContext;
-        offset: Point;
-        preserveDrawingBuffer: boolean;
-        projection: Point;
+        game: Phaser.Game;
+        type: number;
         resolution: number;
-        renderSession: RenderSession;
+        transparent: boolean;
+        autoResize: boolean;
+        preserveDrawingBuffer: boolean;
+        clearBeforeRender: boolean;
+        width: number;
+        height: number;
+        view: HTMLCanvasElement;
+        projection: Point;
+        offset: Point;
         shaderManager: WebGLShaderManager;
         spriteBatch: WebGLSpriteBatch;
         maskManager: WebGLMaskManager;
         filterManager: WebGLFilterManager;
         stencilManager: WebGLStencilManager;
         blendModeManager: WebGLBlendModeManager;
-        transparent: boolean;
-        type: number;
-        view: HTMLCanvasElement;
-        width: number;
+        renderSession: RenderSession;
 
-        destroy(): void;
         initContext(): void;
-        mapBlendModes(): void;
-        render(stage: Stage): void;
+        render(stage: DisplayObjectContainer): void;
         renderDisplayObject(displayObject: DisplayObject, projection: Point, buffer: WebGLBuffer): void;
         resize(width: number, height: number): void;
         updateTexture(texture: Texture): void;
+        destroy(): void;
+        mapBlendModes(): void;
 
     }
 
@@ -1452,7 +1426,7 @@ declare module PIXI {
         getCanvas(): HTMLCanvasElement;
         getImage(): HTMLImageElement;
         resize(width: number, height: number, updateBase: boolean): void;
-        render(displayObject: DisplayObject, position?: Point, clear?: boolean): void;
+        render(displayObject: DisplayObject, matrix?: Matrix, clear?: boolean): void;
 
     }
 

@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -27,14 +27,19 @@ Phaser.Component.Destroy.prototype = {
     * 
     * If this Game Object has the Events component it will also dispatch the `onDestroy` event.
     *
+    * You can optionally also destroy the BaseTexture this Game Object is using. Be careful if you've
+    * more than one Game Object sharing the same BaseTexture.
+    *
     * @method
     * @param {boolean} [destroyChildren=true] - Should every child of this object have its destroy method called as well?
+    * @param {boolean} [destroyTexture=false] - Destroy the BaseTexture this Game Object is using? Note that if another Game Object is sharing the same BaseTexture it will invalidate it.
     */
-    destroy: function(destroyChildren) {
+    destroy: function (destroyChildren, destroyTexture) {
 
         if (this.game === null || this.destroyPhase) { return; }
 
-        if (typeof destroyChildren === 'undefined') { destroyChildren = true; }
+        if (destroyChildren === undefined) { destroyChildren = true; }
+        if (destroyTexture === undefined) { destroyTexture = false; }
 
         this.destroyPhase = true;
 
@@ -75,6 +80,8 @@ Phaser.Component.Destroy.prototype = {
             this.events.destroy();
         }
 
+        this.game.tweens.removeFrom(this);
+
         var i = this.children.length;
 
         if (destroyChildren)
@@ -102,6 +109,16 @@ Phaser.Component.Destroy.prototype = {
             this._frame = null;
         }
 
+        if (Phaser.Video && this.key instanceof Phaser.Video)
+        {
+            this.key.onChangeSource.remove(this.resizeFrame, this);
+        }
+
+        if (Phaser.BitmapText && this._glyphs)
+        {
+            this._glyphs = [];
+        }
+
         this.alive = false;
         this.exists = false;
         this.visible = false;
@@ -113,9 +130,13 @@ Phaser.Component.Destroy.prototype = {
         //  In case Pixi is still going to try and render it even though destroyed
         this.renderable = false;
 
+        if (this.transformCallback)
+        {
+            this.transformCallback = null;
+            this.transformCallbackContext = null;
+        }
+
         //  Pixi level DisplayObject destroy
-        this.transformCallback = null;
-        this.transformCallbackContext = null;
         this.hitArea = null;
         this.parent = null;
         this.stage = null;
@@ -127,7 +148,14 @@ Phaser.Component.Destroy.prototype = {
 
         this._destroyCachedSprite();
 
+        //  Texture?
+        if (destroyTexture)
+        {
+            this.texture.destroy(true);
+        }
+
         this.destroyPhase = false;
+        this.pendingDestroy = false;
 
     }
 

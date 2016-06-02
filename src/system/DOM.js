@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -60,7 +60,7 @@ Phaser.DOM = {
     */
     getBounds: function (element, cushion) {
 
-        if (typeof cushion === 'undefined') { cushion = 0; }
+        if (cushion === undefined) { cushion = 0; }
 
         element = element && !element.nodeType ? element[0] : element;
 

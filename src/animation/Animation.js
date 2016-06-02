@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -18,11 +18,10 @@
 * @param {number[]|string[]} frames - An array of numbers or strings indicating which frames to play in which order.
 * @param {number} [frameRate=60] - The speed at which the animation should play. The speed is given in frames per second.
 * @param {boolean} [loop=false] - Whether or not the animation is looped or just plays once.
-* @param {boolean} loop - Should this animation loop when it reaches the end or play through once.
 */
 Phaser.Animation = function (game, parent, name, frameData, frames, frameRate, loop) {
 
-    if (typeof loop === 'undefined') { loop = false; }
+    if (loop === undefined) { loop = false; }
 
     /**
     * @property {Phaser.Game} game - A reference to the currently running Game.
@@ -131,13 +130,18 @@ Phaser.Animation = function (game, parent, name, frameData, frames, frameRate, l
     this.onStart = new Phaser.Signal();
 
     /**
-    * @property {Phaser.Signal|null} onUpdate - This event is dispatched when the Animation changes frame. By default this event is disabled due to its intensive nature. Enable it with: `Animation.enableUpdate = true`.
+    * This event is dispatched when the Animation changes frame. 
+    * By default this event is disabled due to its intensive nature. Enable it with: `Animation.enableUpdate = true`.
+    * Note that the event is only dispatched with the current frame. In a low-FPS environment Animations
+    * will automatically frame-skip to try and claw back time, so do not base your code on expecting to 
+    * receive a perfectly sequential set of frames from this event.
+    * @property {Phaser.Signal|null} onUpdate
     * @default
     */
     this.onUpdate = null;
 
     /**
-    * @property {Phaser.Signal} onComplete - This event is dispatched when this Animation completes playback. If the animation is set to loop this is never fired, listen for onAnimationLoop instead.
+    * @property {Phaser.Signal} onComplete - This event is dispatched when this Animation completes playback. If the animation is set to loop this is never fired, listen for onLoop instead.
     */
     this.onComplete = new Phaser.Signal();
 
@@ -192,7 +196,7 @@ Phaser.Animation.prototype = {
         this._timeNextFrame = this.game.time.time + this.delay;
 
         this._frameIndex = 0;
-        this.updateCurrentFrame(false);
+        this.updateCurrentFrame(false, true);
 
         this._parent.events.onAnimationStart$dispatch(this._parent, this);
 
@@ -244,7 +248,7 @@ Phaser.Animation.prototype = {
 
         var frameIndex;
 
-        if (typeof useLocalFrameIndex === 'undefined')
+        if (useLocalFrameIndex === undefined)
         {
             useLocalFrameIndex = false;
         }
@@ -301,8 +305,8 @@ Phaser.Animation.prototype = {
     */
     stop: function (resetFrame, dispatchComplete) {
 
-        if (typeof resetFrame === 'undefined') { resetFrame = false; }
-        if (typeof dispatchComplete === 'undefined') { dispatchComplete = false; }
+        if (resetFrame === undefined) { resetFrame = false; }
+        if (dispatchComplete === undefined) { dispatchComplete = false; }
 
         this.isPlaying = false;
         this.isFinished = true;
@@ -390,10 +394,28 @@ Phaser.Animation.prototype = {
                     // Update current state before event callback
                     this._frameIndex %= this._frames.length;
                     this.currentFrame = this._frameData.getFrame(this._frames[this._frameIndex]);
+
+                    //  Instead of calling updateCurrentFrame we do it here instead
+                    if (this.currentFrame)
+                    {
+                        this._parent.setFrame(this.currentFrame);
+                    }
+
                     this.loopCount++;
                     this._parent.events.onAnimationLoop$dispatch(this._parent, this);
                     this.onLoop.dispatch(this._parent, this);
-                    return this.updateCurrentFrame(true);
+
+                    if (this.onUpdate)
+                    {
+                        this.onUpdate.dispatch(this, this.currentFrame);
+
+                        // False if the animation was destroyed from within a callback
+                        return !!this._frameData;
+                    }
+                    else
+                    {
+                        return true;
+                    }
                 }
                 else
                 {
@@ -418,33 +440,35 @@ Phaser.Animation.prototype = {
     * Returns true if the current frame update was 'successful', false otherwise.
     *
     * @method Phaser.Animation#updateCurrentFrame
-    * @param {bool} signalUpdate - If true th onUpdate signal will be triggered.
     * @private
+    * @param {boolean} signalUpdate - If true the `Animation.onUpdate` signal will be dispatched.
+    * @param {boolean} fromPlay - Was this call made from the playing of a new animation?
+    * @return {boolean} True if the current frame was updated, otherwise false.
     */
-    updateCurrentFrame: function (signalUpdate) {
+    updateCurrentFrame: function (signalUpdate, fromPlay) {
+
+        if (fromPlay === undefined) { fromPlay = false; }
 
         if (!this._frameData)
         {
             // The animation is already destroyed, probably from a callback
             return false;
         }
+            
+        //  Previous index
+        var idx = this.currentFrame.index;
 
         this.currentFrame = this._frameData.getFrame(this._frames[this._frameIndex]);
 
-        if (this.currentFrame)
+        if (this.currentFrame && (fromPlay || (!fromPlay && idx !== this.currentFrame.index)))
         {
             this._parent.setFrame(this.currentFrame);
-
-            if (this._parent.__tilePattern)
-            {
-                this._parent.__tilePattern = false;
-                this._parent.tilingTexture = false;
-            }
         }
 
         if (this.onUpdate && signalUpdate)
         {
             this.onUpdate.dispatch(this, this.currentFrame);
+
             // False if the animation was destroyed from within a callback
             return !!this._frameData;
         }
@@ -463,7 +487,7 @@ Phaser.Animation.prototype = {
     */
     next: function (quantity) {
 
-        if (typeof quantity === 'undefined') { quantity = 1; }
+        if (quantity === undefined) { quantity = 1; }
 
         var frame = this._frameIndex + quantity;
 
@@ -495,7 +519,7 @@ Phaser.Animation.prototype = {
     */
     previous: function (quantity) {
 
-        if (typeof quantity === 'undefined') { quantity = 1; }
+        if (quantity === undefined) { quantity = 1; }
 
         var frame = this._frameIndex - quantity;
 
@@ -743,12 +767,12 @@ Object.defineProperty(Phaser.Animation.prototype, 'enableUpdate', {
 * @param {number} start - The number to start sequentially counting from. If your frames are named 'explosion_0001' to 'explosion_0034' the start is 1.
 * @param {number} stop - The number to count to. If your frames are named 'explosion_0001' to 'explosion_0034' the stop value is 34.
 * @param {string} [suffix=''] - The end of the filename. If the filename was 'explosion_0001-large' the prefix would be '-large'.
-* @param {number} [zeroPad=0] - The number of zeroes to pad the min and max values with. If your frames are named 'explosion_0001' to 'explosion_0034' then the zeroPad is 4.
+* @param {number} [zeroPad=0] - The number of zeros to pad the min and max values with. If your frames are named 'explosion_0001' to 'explosion_0034' then the zeroPad is 4.
 * @return {string[]} An array of framenames.
 */
 Phaser.Animation.generateFrameNames = function (prefix, start, stop, suffix, zeroPad) {
 
-    if (typeof suffix === 'undefined') { suffix = ''; }
+    if (suffix === undefined) { suffix = ''; }
 
     var output = [];
     var frame = '';

@@ -82,12 +82,28 @@ PIXI.Texture = function(baseTexture, frame, crop, trim)
     this.valid = false;
 
     /**
+     * Is this a tiling texture? As used by the likes of a TilingSprite.
+     *
+     * @property isTiling
+     * @type Boolean
+     */
+    this.isTiling = false;
+
+    /**
      * This will let a renderer know that a texture has been updated (used mainly for webGL uv updates)
      *
      * @property requiresUpdate
      * @type Boolean
      */
     this.requiresUpdate = false;
+
+    /**
+     * This will let a renderer know that a tinted parent has updated its texture.
+     *
+     * @property requiresReTint
+     * @type Boolean
+     */
+    this.requiresReTint = false;
 
     /**
      * The WebGL UV data cache.
@@ -128,14 +144,10 @@ PIXI.Texture = function(baseTexture, frame, crop, trim)
         if (this.noFrame) frame = new PIXI.Rectangle(0, 0, baseTexture.width, baseTexture.height);
         this.setFrame(frame);
     }
-    // else
-    // {
-    //     baseTexture.addEventListener('loaded', this.onBaseTextureLoaded.bind(this));
-    // }
+
 };
 
 PIXI.Texture.prototype.constructor = PIXI.Texture;
-// PIXI.EventTarget.mixin(PIXI.Texture.prototype);
 
 /**
  * Called when the base texture is loaded
@@ -146,13 +158,13 @@ PIXI.Texture.prototype.constructor = PIXI.Texture;
 PIXI.Texture.prototype.onBaseTextureLoaded = function()
 {
     var baseTexture = this.baseTexture;
-    // baseTexture.removeEventListener('loaded', this.onLoaded);
 
-    if (this.noFrame) this.frame = new PIXI.Rectangle(0, 0, baseTexture.width, baseTexture.height);
+    if (this.noFrame)
+    {
+        this.frame = new PIXI.Rectangle(0, 0, baseTexture.width, baseTexture.height);
+    }
 
     this.setFrame(this.frame);
-
-    // this.dispatchEvent( { type: 'update', content: this } );
 };
 
 /**
@@ -248,7 +260,7 @@ PIXI.Texture.prototype._updateUvs = function()
  * @param imageUrl {String} The image url of the texture
  * @param crossorigin {Boolean} Whether requests should be treated as crossorigin
  * @param scaleMode {Number} See {{#crossLink "PIXI/scaleModes:property"}}PIXI.scaleModes{{/crossLink}} for possible values
- * @return Texture
+ * @return {Texture}
  */
 PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode)
 {
@@ -270,7 +282,7 @@ PIXI.Texture.fromImage = function(imageUrl, crossorigin, scaleMode)
  * @static
  * @method fromFrame
  * @param frameId {String} The frame id of the texture
- * @return Texture
+ * @return {Texture}
  */
 PIXI.Texture.fromFrame = function(frameId)
 {
@@ -286,14 +298,13 @@ PIXI.Texture.fromFrame = function(frameId)
  * @method fromCanvas
  * @param canvas {Canvas} The canvas element source of the texture
  * @param scaleMode {Number} See {{#crossLink "PIXI/scaleModes:property"}}PIXI.scaleModes{{/crossLink}} for possible values
- * @return Texture
+ * @return {Texture}
  */
 PIXI.Texture.fromCanvas = function(canvas, scaleMode)
 {
     var baseTexture = PIXI.BaseTexture.fromCanvas(canvas, scaleMode);
 
-    return new PIXI.Texture( baseTexture );
-
+    return new PIXI.Texture(baseTexture);
 };
 
 /**

@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2015 Photon Storm Ltd.
+* @copyright    2016 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -29,7 +29,7 @@ Phaser.Component.Reset = function () {};
 */
 Phaser.Component.Reset.prototype.reset = function (x, y, health) {
 
-    if (typeof health === 'undefined') { health = 1; }
+    if (health === undefined) { health = 1; }
 
     this.world.set(x, y);
     this.position.set(x, y);
